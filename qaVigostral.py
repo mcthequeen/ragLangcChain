@@ -1,7 +1,7 @@
 
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-
+from mistralai.models.chat_completion import ChatMessage
 
 
 
@@ -20,27 +20,37 @@ class QA_inference:
     return documents, results
 
   def completion(self, query, return_docs = False):
-    print("model type: ",type(self.model))
+    
     documents, results = self.get_documents(query)
-    template = """Tu es un assistant qui doit répondre aux questions de l'utilisateur en te basant sur les documents.
+    
+    template = f"""Tu es un assistant qui doit répondre aux questions de l'utilisateur en te basant sur les documents.
 Tu ne dois que te baser sur les documents et rien d'autre.
 Tu dois répondre seulement en Français.
-Si tu ne peux pas donner de réponse, dis le.
+Si la réponse n'est pas dans les documents répond que tu ne peux pas répondre, et rien d'autre
 Pour les mots techniques, mets une explication comme si l'utilisateur avait 5 ans.
 Voici les documents:
 {documents}
-Voici la question: {question}
 """
-    prompt_template = PromptTemplate.from_template(template)
-
-    prompt = prompt_template.format(documents=documents, 
-                       question = query)
-
 
         
     print("Iris :")
-    prompt
-    output = self.model.invoke(prompt)
+    messages = [
+      ChatMessage(role="system", content=template),
+      ChatMessage(role="user", content=query)
+    ]
+
+# With streaming
+    stream_response = self.model.chat_stream(model="mistral-tiny", 
+                                            temperature=0.0,
+                                            max_tokens=512,
+                                            top_p=1,
+                                            messages=messages)
+
+    output = []
+    for chunk in stream_response:
+      print(chunk.choices[0].delta.content, end="")
+      output.append(chunk.choices[0].delta.content)
+
 
     if return_docs:
       for i in range(len(results)):
